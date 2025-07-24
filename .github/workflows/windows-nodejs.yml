@@ -1,0 +1,29 @@
+name: Windows Node.js CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install yarn globally
+      run: npm i -g yarn
+
+    - name: Install dependencies
+      run: yarn install
+
+    - name: Run API dev
+      run: yarn api:dev
