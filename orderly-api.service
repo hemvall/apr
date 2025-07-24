@@ -1,0 +1,17 @@
+[Unit]
+Description=Orderly Trading API
+After=network.target
+
+[Service]
+Type=simple
+User=rxm
+WorkingDirectory=/Users/rxm/Desktop/Arbitrage/apr
+ExecStart=/usr/bin/yarn api:prod
+Restart=always
+RestartSec=10
+StandardOutput=append:/Users/rxm/Desktop/Arbitrage/apr/logs/api.log
+StandardError=append:/Users/rxm/Desktop/Arbitrage/apr/logs/api-error.log
+Environment="NODE_ENV=production"
+
+[Install]
+WantedBy=multi-user.target

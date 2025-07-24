@@ -1,0 +1,112 @@
+Wallet initialized: 0x267094BA2E56487729F8406F6A5cD50cCEd2359D
+API server running on http://localhost:3000
+Available endpoints:
+  GET  /health - Health check
+  GET  /account - Get account info
+  GET  /market/:symbol - Get market price
+  POST /order - Create order with TP/SL based on PnL
+  GET  /orders - Get open orders
+  DELETE /order/:orderId - Cancel order
+
+📝 POST /order body parameters:
+  - quantity: Order size (default: 0.005)
+  - tpPnL: Target profit in $ (default: 3)
+  - slPnL: Target loss in $ (default: -3)
+  - side: BUY or SELL (default: BUY)
+  - symbol: Trading pair (default: PERP_ETH_USDC)
+getOrderbook: {
+  "success": true,
+  "data": {
+    "timestamp": 1753388287270,
+    "asks": [
+      {
+        "price": 3736,
+        "quantity": 21.6068
+      }
+    ],
+    "bids": [
+      {
+        "price": 3735.99,
+        "quantity": 0.5435
+      }
+    ]
+  },
+  "timestamp": 1753388287453
+}
+Creating BUY order for 0.01 units at ~3736...
+creating order {
+  "symbol": "PERP_ETH_USDC",
+  "order_type": "LIMIT",
+  "side": "BUY",
+  "order_price": 3736.5,
+  "order_quantity": 0.01
+}
+createOrder: {
+  "success": true,
+  "data": {
+    "order_id": 12722307164,
+    "client_order_id": null,
+    "order_type": "LIMIT",
+    "order_price": 3736.5,
+    "order_quantity": 0.01,
+    "order_amount": null
+  },
+  "timestamp": 1753388287741
+}
+PnL Calculation: Entry=3736, Qty=0.01
+TP: $3 target => 300 price move => 4036
+SL: $-3 target => -300 price move => 3436
+Creating TP/SL orders based on PnL targets...
+Entry: 3736, TP: 4036 (+$3), SL: 3436 ($-3)
+Creating TP order at 4036...
+creating algo order {
+  "symbol": "PERP_ETH_USDC",
+  "algo_type": "STOP",
+  "quantity": 0.01,
+  "trigger_price": 4036,
+  "trigger_price_type": "MARK_PRICE",
+  "side": "SELL",
+  "type": "MARKET",
+  "reduce_only": true
+}
+createAlgoOrder: {
+  "success": true,
+  "data": {
+    "rows": [
+      {
+        "order_id": 35265833,
+        "client_order_id": null,
+        "algo_type": "TAKE_PROFIT",
+        "order_quantity": 0.01
+      }
+    ]
+  },
+  "timestamp": 1753388290055
+}
+TP order created successfully
+Creating SL order at 3436...
+creating algo order {
+  "symbol": "PERP_ETH_USDC",
+  "algo_type": "STOP",
+  "quantity": 0.01,
+  "trigger_price": 3436,
+  "trigger_price_type": "MARK_PRICE",
+  "side": "SELL",
+  "type": "MARKET",
+  "reduce_only": true
+}
+createAlgoOrder: {
+  "success": true,
+  "data": {
+    "rows": [
+      {
+        "order_id": 35265834,
+        "client_order_id": null,
+        "algo_type": "STOP_LOSS",
+        "order_quantity": 0.01
+      }
+    ]
+  },
+  "timestamp": 1753388291864
+}
+SL order created successfully
