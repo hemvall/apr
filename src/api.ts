@@ -1,16 +1,17 @@
 import express from 'express';
 import cors from 'cors';
-import { ethers } from 'ethers';
-import bs58 from 'bs58';
+const axios = require('axios');
+
+
 import { config } from 'dotenv';
 import { OrderSide, OrderType } from '@orderly.network/types';
 import { webcrypto } from 'node:crypto';
 
 import { getClientHolding, getOpenAlgoOrders, getOpenOrders } from './account';
-import { BASE_URL, BROKER_ID } from './config';
 import { cancelAlgoOrder, cancelOrder, createAlgoOrder, createOrder } from './order';
 import { getOrderbook } from './orderbook';
-import { registerAccount, addAccessKey } from './register';
+import { BASE_URL } from './config';
+import { initializeWallet, roundToTick, calculateTPSLFromPnL, calculateStats } from './utils/functions'
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -22,76 +23,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Cache for wallet and orderly key
-let cachedWallet: ethers.Wallet;
-let cachedAccountId: string;
-let cachedOrderlyKey: Uint8Array;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`API server running on http://localhost:${PORT}`);
+  console.log('Available endpoints:');
+  console.log('  GET  /health - Health check');
+  console.log('  GET  /account - Get account info');
+  console.log('  GET  /market/:symbol - Get market price');
+  console.log('  POST /order - Create order with TP/SL based on PnL');
+  console.log('  GET  /orders - Get open orders');
+  console.log('  DELETE /order/:orderId - Cancel order');
+  console.log('\n📝 POST /order body parameters:');
+  console.log('  - quantity: Order size (default: 0.005)');
+  console.log('  - tpPnL: Target profit in $ (default: 3)');
+  console.log('  - slPnL: Target loss in $ (default: -3)');
+  console.log('  - side: BUY or SELL (default: BUY)');
+  console.log('  - symbol: Trading pair (default: PERP_ETH_USDC)');
+});
 
-async function initializeWallet() {
-  if (!cachedWallet) {
-    cachedWallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
-    const address = await cachedWallet.getAddress();
-    console.log('Wallet initialized:', address);
-
-    // Get or create account
-    const getAccountRes = await fetch(
-      `${BASE_URL}v1/get_account?address=${address}&broker_id=${BROKER_ID}`
-    );
-    const getAccountJson = await getAccountRes.json();
-
-    if (getAccountJson.success) {
-      cachedAccountId = getAccountJson.data.account_id;
-    } else {
-      cachedAccountId = await registerAccount(cachedWallet);
-    }
-
-    // Get or create orderly key
-    try {
-      cachedOrderlyKey = bs58.decode(process.env.ORDERLY_SECRET!);
-    } catch (err) {
-      cachedOrderlyKey = await addAccessKey(cachedWallet);
-      console.log('New orderlyKey generated:', bs58.encode(cachedOrderlyKey));
-      console.log('===== Add this to your .env: ORDERLY_SECRET=' + bs58.encode(cachedOrderlyKey) + ' =====');
-    }
-  }
-
-  return { wallet: cachedWallet, accountId: cachedAccountId, orderlyKey: cachedOrderlyKey };
-}
-
-// Helper function to round price to tick size with proper decimal handling
-function roundToTick(price: number, tickSize: number = 0.01): number {
-  // Use parseFloat and toFixed to avoid JavaScript decimal precision issues
-  return parseFloat((Math.round(price / tickSize) * tickSize).toFixed(2));
-}
-
-// Calculate TP/SL prices based on PnL target in dollars
-function calculateTPSLFromPnL(entryPrice: number, quantity: number, tpPnL: number, slPnL: number) {
-  // For a long position:
-  // TP PnL = quantity * (tpPrice - entryPrice)
-  // So: tpPrice = entryPrice + (tpPnL / quantity)
-  
-  // SL PnL = quantity * (slPrice - entryPrice) 
-  // So: slPrice = entryPrice + (slPnL / quantity)
-  // Note: slPnL should be negative for a loss
-  
-  const tpPriceOffset = tpPnL / quantity;
-  const slPriceOffset = slPnL / quantity; // This will be negative
-  
-  const tpPrice = roundToTick(entryPrice + tpPriceOffset);
-  const slPrice = roundToTick(entryPrice + slPriceOffset);
-  
-  console.log(`PnL Calculation: Entry=${entryPrice}, Qty=${quantity}`);
-  console.log(`TP: $${tpPnL} target => ${tpPriceOffset} price move => ${tpPrice}`);
-  console.log(`SL: $${slPnL} target => ${slPriceOffset} price move => ${slPrice}`);
-  
-  return { tpPrice, slPrice };
-}
-
+/* GET Endpoints */
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
 // Get account info
 app.get('/account', async (req, res) => {
   try {
@@ -102,16 +56,15 @@ app.get('/account', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
 // Get current market price
 app.get('/market/:symbol', async (req, res) => {
   try {
     const { accountId, orderlyKey } = await initializeWallet();
     const symbol = req.params.symbol || 'PERP_ETH_USDC';
-    
+
     const orderbook = await getOrderbook(symbol, 1, accountId, orderlyKey);
     const currentPrice = (orderbook.data.bids[0].price + orderbook.data.asks[0].price) / 2;
-    
+
     res.json({
       success: true,
       symbol,
@@ -124,7 +77,53 @@ app.get('/market/:symbol', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// Get open orders
+app.get('/orders', async (req, res) => {
+  try {
+    const { accountId, orderlyKey } = await initializeWallet();
 
+    const orders = await getOpenOrders(accountId, orderlyKey);
+    const algoOrders = await getOpenAlgoOrders('STOP', accountId, orderlyKey);
+
+    res.json({
+      success: true,
+      orders,
+      algoOrders
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+// Endpoint /stats
+app.get('/stats', async (req, res) => {
+  const { orderlyKey } = await initializeWallet();
+
+  try {
+    // Exemple : tu peux récupérer les trades en live depuis l’API Orderly (si disponible)
+    const response = await axios.get(`${BASE_URL}/v1/trades`, {
+      headers: {
+        'Orderly-Api-Key': orderlyKey,
+        'Orderly-Timestamp': Date.now(),
+        // Signature HMAC ici si nécessaire
+      },
+    });
+
+    const trades = response.data?.data || [];
+
+    const stats = calculateStats(trades);
+
+    res.json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error.response?.data || error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
+
+
+/* POST Endpoints */
 // Create order with TP/SL based on PnL targets
 app.post('/order', async (req, res) => {
   try {
@@ -157,7 +156,7 @@ app.post('/order', async (req, res) => {
     // Determine entry price based on side
     let entryPrice: number;
     let orderPrice: number;
-    
+
     if (side.toUpperCase() === 'BUY') {
       // For buy orders, use ask price + small buffer
       orderPrice = asks[0].price + 0.5;
@@ -197,7 +196,7 @@ app.post('/order', async (req, res) => {
     // For a buy order, TP and SL are sell orders
     // For a sell order, TP and SL are buy orders
     const tpslSide = side.toUpperCase() === 'BUY' ? OrderSide.SELL : OrderSide.BUY;
-    
+
     // Determine which price should be higher for TP
     const isLong = side.toUpperCase() === 'BUY';
     const actualTpPrice = isLong ? Math.max(tpPrice, slPrice) : Math.min(tpPrice, slPrice);
@@ -281,24 +280,8 @@ app.post('/order', async (req, res) => {
   }
 });
 
-// Get open orders
-app.get('/orders', async (req, res) => {
-  try {
-    const { accountId, orderlyKey } = await initializeWallet();
-    
-    const orders = await getOpenOrders(accountId, orderlyKey);
-    const algoOrders = await getOpenAlgoOrders('STOP', accountId, orderlyKey);
-    
-    res.json({
-      success: true,
-      orders,
-      algoOrders
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
+/* DELETE Endpoints */
 // Cancel order
 app.delete('/order/:orderId', async (req, res) => {
   try {
@@ -316,25 +299,6 @@ app.delete('/order/:orderId', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
-  console.log('Available endpoints:');
-  console.log('  GET  /health - Health check');
-  console.log('  GET  /account - Get account info');
-  console.log('  GET  /market/:symbol - Get market price');
-  console.log('  POST /order - Create order with TP/SL based on PnL');
-  console.log('  GET  /orders - Get open orders');
-  console.log('  DELETE /order/:orderId - Cancel order');
-  console.log('\n📝 POST /order body parameters:');
-  console.log('  - quantity: Order size (default: 0.005)');
-  console.log('  - tpPnL: Target profit in $ (default: 3)');
-  console.log('  - slPnL: Target loss in $ (default: -3)');
-  console.log('  - side: BUY or SELL (default: BUY)');
-  console.log('  - symbol: Trading pair (default: PERP_ETH_USDC)');
 });
 
 // Initialize wallet on startup
