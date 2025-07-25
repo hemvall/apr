@@ -4,11 +4,11 @@ import { config } from 'dotenv';
 import { AbiCoder, ethers, keccak256, solidityPackedKeccak256 } from 'ethers';
 import { webcrypto } from 'node:crypto';
 
-import { getClientHolding, getOpenAlgoOrders, getOpenOrders } from './account';
-import { BASE_URL, BROKER_ID } from './config';
-import { cancelAlgoOrder, cancelOrder, createAlgoOrder, createOrder } from './order';
-import { getOrderbook } from './orderbook';
-import { addAccessKey, registerAccount } from './register';
+import { getClientHolding, getOpenAlgoOrders, getOpenOrders } from './utils/account';
+import { BASE_URL, BROKER_ID } from './utils/config';
+import { cancelAlgoOrder, cancelOrder, createAlgoOrder, createOrder } from './utils/order';
+import { getOrderbook } from './utils/orderbook';
+import { addAccessKey, registerAccount } from './utils/register';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

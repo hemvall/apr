@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import bs58 from 'bs58';
-import { BASE_URL, BROKER_ID } from '../config';
-import { registerAccount, addAccessKey } from '../register';
+import { BASE_URL, BROKER_ID } from './config';
+import { registerAccount, addAccessKey } from './register';
 
 // Cache for wallet and orderly key
 let cachedWallet: ethers.Wallet;

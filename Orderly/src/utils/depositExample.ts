@@ -1,8 +1,8 @@
 import { config } from 'dotenv';
 import { AbiCoder, ethers, keccak256, solidityPackedKeccak256 } from 'ethers';
 
-import { Vault__factory, NativeUSDC__factory } from './abi';
-import type { VaultTypes } from './abi/Vault';
+import { Vault__factory, NativeUSDC__factory } from '../abi';
+import type { VaultTypes } from '../abi/Vault';
 
 const brokerId = 'woofi_pro';
 const tokenId = 'USDC';

@@ -1,4 +1,10 @@
-# Orderly EVM examples Typescript
+# Paradex 
+- nvm install
+- yarn install
+- yarn run app
+- yarn run bench
+
+# Orderly
 
 This repository contains examples of how to use [Orderly EVM API](https://testnet-docs-api-evm.orderly.network/) written in TypeScript.
 

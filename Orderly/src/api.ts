@@ -7,10 +7,10 @@ import { config } from 'dotenv';
 import { OrderSide, OrderType } from '@orderly.network/types';
 import { webcrypto } from 'node:crypto';
 
-import { getClientHolding, getOpenAlgoOrders, getOpenOrders } from './account';
-import { cancelAlgoOrder, cancelOrder, createAlgoOrder, createOrder } from './order';
-import { getOrderbook } from './orderbook';
-import { BASE_URL } from './config';
+import { getClientHolding, getOpenAlgoOrders, getOpenOrders } from './utils/account';
+import { cancelAlgoOrder, cancelOrder, createAlgoOrder, createOrder } from './utils/order';
+import { getOrderbook } from './utils/orderbook';
+import { BASE_URL } from './utils/config';
 import { initializeWallet, roundToTick, calculateTPSLFromPnL, calculateStats } from './utils/functions'
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -30,8 +30,9 @@ app.listen(PORT, () => {
   console.log('  GET  /health - Health check');
   console.log('  GET  /account - Get account info');
   console.log('  GET  /market/:symbol - Get market price');
-  console.log('  POST /order - Create order with TP/SL based on PnL');
+  console.log('  GET  /stats - Get user statistics');
   console.log('  GET  /orders - Get open orders');
+  console.log('  POST /order - Create order with TP/SL based on PnL');
   console.log('  DELETE /order/:orderId - Cancel order');
   console.log('\n📝 POST /order body parameters:');
   console.log('  - quantity: Order size (default: 0.005)');
