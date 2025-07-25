@@ -6,7 +6,6 @@
   ETHEREUM_ACCOUNT
 - yarn install
 - yarn run app
-- yarn run bench
 
 # Orderly
 
