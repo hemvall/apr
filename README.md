@@ -1,8 +1,8 @@
 # Paradex 
 - setup .env
-  ACCOUNT_ADDRESS
-  PUBLIC_KEY
-  PRIVATE_KEY (must be a valid Starknet private key, as a hex string)
+  ACCOUNT_ADDRESS /
+  PUBLIC_KEY /
+  PRIVATE_KEY (must be a valid Starknet private key, as a hex string) /
   ETHEREUM_ACCOUNT
 - yarn install
 - yarn run app
